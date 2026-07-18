@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         链动小铺商家增强工具
 // @namespace    https://www.ldxp.cn/
-// @version      1.1.0
+// @version      1.1.1
 // @description  货源广场增强搜索与一键对接；商品管理批量修改分类、价格、状态并复制文字报表。
 // @author       miku1130
 // @license      MIT
@@ -50,6 +50,7 @@
     items: [],
     selected: new Set(),
     categories: [],
+    infoById: new Map(),
     loading: false,
     goodsType: "card",
   };
@@ -563,19 +564,64 @@
       return result;
     }
 
+    function categoryIdForItem(item) {
+      const cached = goodsState.infoById.get(String(item.id));
+      const categoryString = typeof item.category === "string" ? item.category.trim() : "";
+      return (
+        item.category_id ??
+        item.goods_category_id ??
+        item.categoryId ??
+        item.cate_id ??
+        item.category?.id ??
+        item.category?.value ??
+        cached?.category_id ??
+        cached?.goods_category_id ??
+        cached?.categoryId ??
+        cached?.cate_id ??
+        (categoryString && /^\d+$/.test(categoryString) ? categoryString : undefined)
+      );
+    }
+
     function categoryLabelForItem(item) {
       const categoryString = typeof item.category === "string" ? item.category.trim() : "";
+      const cached = goodsState.infoById.get(String(item.id));
       const direct =
         (categoryString && !/^\d+$/.test(categoryString) ? categoryString : "") ||
         item.category?.name ||
         item.category?.label ||
         item.category_name ||
-        item.category_title;
+        item.category_title ||
+        cached?.category?.name ||
+        cached?.category?.label ||
+        cached?.category_name ||
+        cached?.category_title;
       if (direct) return direct;
-      const categoryId = item.category_id ?? item.category?.id ?? item.category?.value ?? (categoryString || item.category);
+      const categoryId = categoryIdForItem(item);
       const matched = goodsState.categories.find((category) => String(category.value) === String(categoryId));
       if (matched) return matched.label;
       return categoryId !== undefined && categoryId !== null && categoryId !== "" ? `分类 ID：${categoryId}` : "未分类";
+    }
+
+    async function enrichGoodsInfo(items) {
+      const pending = items.filter((item) => categoryIdForItem(item) === undefined && !goodsState.infoById.has(String(item.id)));
+      if (!pending.length) return;
+      let nextIndex = 0;
+      let completed = 0;
+      const worker = async () => {
+        while (nextIndex < pending.length) {
+          const item = pending[nextIndex];
+          nextIndex += 1;
+          try {
+            const info = await postJson(API.goodsInfo, { id: item.id });
+            goodsState.infoById.set(String(item.id), info || {});
+          } catch (_) {
+            goodsState.infoById.set(String(item.id), {});
+          }
+          completed += 1;
+          setPanelStatus(panel, `正在识别商品分类 ${completed}/${pending.length}...`);
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(6, pending.length) }, () => worker()));
     }
 
     function fillCategorySelect(select, emptyLabel, searchText = "") {
@@ -695,6 +741,7 @@
       goodsState.rawItems = [];
       goodsState.items = [];
       goodsState.selected.clear();
+      goodsState.infoById.clear();
       renderGoodsResults();
       setBusy(button, true, "加载中...");
       try {
@@ -716,6 +763,7 @@
           goodsState.rawItems.push(...list);
           if (list.length < controls.pageSize) break;
         }
+        await enrichGoodsInfo(goodsState.rawItems);
         applyGoodsDisplay();
         setPanelStatus(panel, `已拉取 ${goodsState.rawItems.length} 个，当前显示 ${goodsState.items.length} 个商品`);
       } catch (error) {
@@ -776,7 +824,8 @@
         setPanelStatus(panel, `正在保存 ${index + 1}/${items.length}：${item.name}`);
         try {
           if (categoryId || priceMode !== "keep") {
-            const info = await postJson(API.goodsInfo, { id: item.id });
+            const cachedInfo = goodsState.infoById.get(String(item.id));
+            const info = cachedInfo && Object.keys(cachedInfo).length ? cachedInfo : await postJson(API.goodsInfo, { id: item.id });
             const payload = JSON.parse(JSON.stringify(info || {}));
             if (!payload.id) payload.id = item.id;
             if (categoryId) payload.category_id = Number(categoryId);
