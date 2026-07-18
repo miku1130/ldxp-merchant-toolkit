@@ -15,8 +15,13 @@ QQ 交流群：`1076144676`
 ## 安装
 
 1. 安装 Tampermonkey 或 Violentmonkey。
-2. 打开 [`ldxp-merchant-toolkit.user.js`](./ldxp-merchant-toolkit.user.js)，点击 Raw 后由脚本管理器安装。
+2. 从 [Greasy Fork 安装](https://greasyfork.org/zh-CN/scripts/587565-%E9%93%BE%E5%8A%A8%E5%B0%8F%E9%93%BA%E5%95%86%E5%AE%B6%E5%A2%9E%E5%BC%BA%E5%B7%A5%E5%85%B7)，或打开 [`ldxp-merchant-toolkit.user.js`](./ldxp-merchant-toolkit.user.js) 后点击 Raw 安装。
 3. 登录链动小铺商家后台并刷新页面。
+
+## 发布地址
+
+- [GitHub](https://github.com/miku1130/ldxp-merchant-toolkit)
+- [Greasy Fork](https://greasyfork.org/zh-CN/scripts/587565-%E9%93%BE%E5%8A%A8%E5%B0%8F%E9%93%BA%E5%95%86%E5%AE%B6%E5%A2%9E%E5%BC%BA%E5%B7%A5%E5%85%B7)
 
 ## 使用页面
 
