@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         链动小铺商家增强工具
 // @namespace    https://www.ldxp.cn/
-// @version      1.1.2
+// @version      1.1.3
 // @description  货源广场增强搜索与一键对接；商品管理批量修改分类、价格、状态并复制文字报表。
 // @author       miku1130
 // @license      MIT
@@ -875,9 +875,9 @@
           `库存：${itemStock(item)}`,
           `价格：${money(item.price)}`,
           `链接：${link}`,
-        ].join("｜"));
+        ].join("\n"));
       }
-      const report = blocks.join(" || ");
+      const report = blocks.join("\n--------------------\n");
       reportModal.querySelector("[data-report-text]").value = report;
       reportModal.hidden = false;
       try {
