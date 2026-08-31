@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         链动小铺商家增强工具
 // @namespace    https://www.ldxp.cn/
-// @version      1.1.3
-// @description  货源广场增强搜索与一键对接；商品管理批量修改分类、价格、状态并复制文字报表。
+// @version      1.1.4
+// @description  货源广场增强搜索与一键对接；支持上架和库存筛选，商品管理可批量修改分类、价格、状态并复制文字报表。
 // @author       miku1130
 // @license      MIT
 // @homepageURL  https://github.com/miku1130/ldxp-merchant-toolkit
@@ -109,6 +109,23 @@
   function money(value) {
     const number = toNumber(value);
     return number === null ? "-" : `¥${number.toFixed(2)}`;
+  }
+
+  function listedState(item) {
+    const value = item.is_listed ?? item.is_on_sale ?? item.is_on_shelf ?? item.on_sale ?? item.on_shelf ?? item.status;
+    if (value === true || value === 1 || value === "1") return true;
+    if (value === false || value === 0 || value === "0") return false;
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (["listed", "on_sale", "on_shelf", "sale", "selling", "active", "已上架", "上架", "销售中"].includes(normalized)) return true;
+    if (["unlisted", "off_sale", "off_shelf", "warehouse", "inactive", "已下架", "下架", "仓库中"].includes(normalized)) return false;
+    return null;
+  }
+
+  function listedLabel(item) {
+    const state = listedState(item);
+    if (state === true) return { text: "已上架", className: "ok" };
+    if (state === false) return { text: "未上架", className: "warn" };
+    return { text: "未知", className: "warn" };
   }
 
   function safeUrl(value) {
@@ -267,8 +284,7 @@
 
   function getSourceStock(item) {
     if (item.goods_type !== "card") return null;
-    const value = toNumber(item.stock_count ?? item.extend?.stock_count);
-    return value === null ? 0 : value;
+    return toNumber(item.stock_count ?? item.extend?.stock_count);
   }
 
   function sourceMatches(item, filters) {
@@ -278,8 +294,10 @@
     const maxPrice = toNumber(filters.maxPrice);
     if (minPrice !== null && (price === null || price < minPrice)) return false;
     if (maxPrice !== null && (price === null || price > maxPrice)) return false;
-    if (filters.stock === "in" && stock !== null && stock <= 0) return false;
-    if (filters.stock === "out" && stock !== 0) return false;
+    if (filters.stock === "in" && (stock === null || stock <= 0)) return false;
+    if (filters.stock === "out" && (stock === null || stock > 0)) return false;
+    if (filters.listed === "yes" && listedState(item) !== true) return false;
+    if (filters.listed === "no" && listedState(item) !== false) return false;
     if (filters.connect === "yes" && !item.child) return false;
     if (filters.connect === "no" && item.child) return false;
     return true;
@@ -296,6 +314,7 @@
         <label>最低成本<input data-source="minPrice" type="number" min="0" step="0.01" placeholder="不限"></label>
         <label>最高成本<input data-source="maxPrice" type="number" min="0" step="0.01" placeholder="不限"></label>
         <label>库存<select data-source="stock"><option value="all">全部</option><option value="in">有库存</option><option value="out">缺货</option></select></label>
+        <label>是否上架<select data-source="listed"><option value="all">全部</option><option value="yes">已上架</option><option value="no">未上架</option></select></label>
         <label>对接状态<select data-source="connect"><option value="all">全部</option><option value="no">未对接</option><option value="yes">已对接</option></select></label>
         <label>默认加价比例（%）<input data-source="addRate" type="number" min="0" step="0.1" value="10"></label>
         <div class="ldxp-toolkit-actions">
@@ -339,16 +358,18 @@
       }
       wrap.innerHTML = `
         <table class="ldxp-toolkit-table">
-          <thead><tr><th>选择</th><th>商品</th><th>类型</th><th>成本</th><th>库存</th><th>商家</th><th>状态</th><th>操作</th></tr></thead>
+          <thead><tr><th>选择</th><th>商品</th><th>类型</th><th>成本</th><th>上架状态</th><th>库存</th><th>商家</th><th>对接状态</th><th>操作</th></tr></thead>
           <tbody>${sourceState.filtered.map((item) => {
             const stock = getSourceStock(item);
             const connected = Boolean(item.child);
+            const listed = listedLabel(item);
             return `<tr>
               <td><input type="checkbox" data-source-id="${escapeHtml(item.id)}" ${sourceState.selected.has(String(item.id)) ? "checked" : ""}></td>
               <td class="name"><a href="${escapeHtml(safeUrl(item.link))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.name || "-")}</a></td>
               <td>${escapeHtml(GOODS_TYPES[item.goods_type] || item.goods_type || "-")}</td>
               <td>${escapeHtml(money(getSourceCost(item)))}</td>
-              <td>${stock === null ? '<span class="ldxp-toolkit-muted">无需库存</span>' : escapeHtml(stock)}</td>
+              <td><span class="ldxp-toolkit-badge ${listed.className}">${listed.text}</span></td>
+              <td>${item.goods_type !== "card" ? '<span class="ldxp-toolkit-muted">无需库存</span>' : stock === null ? '<span class="ldxp-toolkit-muted">-</span>' : escapeHtml(stock)}</td>
               <td>${escapeHtml(item.user?.nickname || "-")}</td>
               <td><span class="ldxp-toolkit-badge ${connected ? "ok" : "warn"}">${connected ? "已对接" : "未对接"}</span></td>
               <td><button type="button" class="${connected ? "" : "success"}" data-connect-id="${escapeHtml(item.id)}" ${connected ? "disabled" : ""}>${connected ? "已对接" : "一键对接"}</button></td>
@@ -480,7 +501,7 @@
   function itemStock(item) {
     if ((item.goods_type || goodsState.goodsType) !== "card") return "无需库存";
     const stock = toNumber(item.extend?.stock_count ?? item.stock_count);
-    return String(stock ?? 0);
+    return stock === null ? "-" : String(stock);
   }
 
   function createReportModal() {
@@ -523,7 +544,7 @@
     body.innerHTML = `
       <div class="ldxp-toolkit-controls">
         <label>商品类型<select data-goods="goodsType">${Object.entries(GOODS_TYPES).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
-        <label>商品状态<select data-goods="status"><option value="999">全部</option><option value="1">销售中</option><option value="0">仓库中</option></select></label>
+        <label>是否上架<select data-goods="status"><option value="999">全部</option><option value="1">已上架</option><option value="0">未上架</option></select></label>
         <label>筛选分类搜索<input data-goods-filter-category-search placeholder="输入分类名称"></label>
         <label>筛选分类<select data-goods="filterCategory"><option value="">全部分类</option></select></label>
         <label>商品名称<input data-goods="name" placeholder="留空查询全部"></label>
@@ -688,7 +709,8 @@
       goodsState.items = goodsState.rawItems.filter((item) => {
         if (stockFilter === "all") return true;
         if ((item.goods_type || goodsState.goodsType) !== "card") return false;
-        const stock = toNumber(item.extend?.stock_count ?? item.stock_count) ?? 0;
+        const stock = toNumber(item.extend?.stock_count ?? item.stock_count);
+        if (stock === null) return false;
         return stockFilter === "in" ? stock > 0 : stock <= 0;
       });
       const visibleIds = new Set(goodsState.items.map((item) => String(item.id)));
@@ -710,15 +732,15 @@
       }
       wrap.innerHTML = `
         <table class="ldxp-toolkit-table">
-          <thead><tr><th>选择</th><th>ID</th><th>商品名称</th><th>分类</th><th>库存</th><th>价格</th><th>状态</th></tr></thead>
+          <thead><tr><th>选择</th><th>ID</th><th>商品名称</th><th>分类</th><th>上架状态</th><th>库存</th><th>价格</th></tr></thead>
           <tbody>${goodsState.items.map((item) => `<tr>
             <td><input type="checkbox" data-goods-id="${escapeHtml(item.id)}" ${goodsState.selected.has(String(item.id)) ? "checked" : ""}></td>
             <td>${escapeHtml(item.id)}</td>
             <td class="name">${escapeHtml(item.name || "-")}</td>
             <td>${escapeHtml(categoryLabelForItem(item))}</td>
+            <td><span class="ldxp-toolkit-badge ${listedLabel(item).className}">${listedLabel(item).text}</span></td>
             <td>${escapeHtml(itemStock(item))}</td>
             <td>${escapeHtml(money(item.price))}</td>
-            <td><span class="ldxp-toolkit-badge ${item.status === 1 ? "ok" : "warn"}">${item.status === 1 ? "销售中" : "仓库中"}</span></td>
           </tr>`).join("")}</tbody>
         </table>`;
       updateGoodsCount();
