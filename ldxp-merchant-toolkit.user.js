@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         链动小铺商家增强工具
 // @namespace    https://www.ldxp.cn/
-// @version      1.1.4
+// @version      1.1.5
 // @description  货源广场增强搜索与一键对接；支持上架和库存筛选，商品管理可批量修改分类、价格、状态并复制文字报表。
 // @author       miku1130
 // @license      MIT
@@ -176,6 +176,10 @@
         height: 42px; padding: 0 18px; border: 0; border-radius: 22px;
         color: #fff; background: #165dff; box-shadow: 0 10px 28px rgba(22,93,255,.3);
         font-size: 14px; font-weight: 700; cursor: pointer;
+      }
+      .ldxp-toolkit-launcher.goto {
+        bottom: 76px; background: #344054;
+        box-shadow: 0 10px 28px rgba(52,64,84,.28);
       }
       .ldxp-toolkit-panel {
         position: fixed; top: 76px; right: 22px; z-index: 2147483647;
@@ -969,6 +973,9 @@
       panel.hidden = !panel.hidden;
       if (!panel.hidden && !goodsState.categories.length) loadCategories(readGoodsControls().goodsType);
     });
+    createLauncher("货源广场", () => {
+      location.href = SOURCE_PATH;
+    }).classList.add("goto");
   }
 
   function mount() {
