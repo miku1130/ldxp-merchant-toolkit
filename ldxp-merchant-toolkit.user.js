@@ -1,12 +1,16 @@
 // ==UserScript==
 // @name         链动小铺商家增强工具
-// @namespace    https://www.ldxp.cn/
-// @version      1.1.5
+// @namespace    https://wzyp.cn/
+// @version      1.1.7
 // @description  货源广场增强搜索与一键对接；支持上架和库存筛选，商品管理可批量修改分类、价格、状态并复制文字报表。
 // @author       miku1130
 // @license      MIT
 // @homepageURL  https://github.com/miku1130/ldxp-merchant-toolkit
 // @supportURL   https://github.com/miku1130/ldxp-merchant-toolkit/issues
+// @updateURL    https://github.com/miku1130/ldxp-merchant-toolkit/releases/latest/download/ldxp-merchant-toolkit.user.js
+// @downloadURL  https://github.com/miku1130/ldxp-merchant-toolkit/releases/latest/download/ldxp-merchant-toolkit.user.js
+// @match        https://wzyp.cn/merchant/*
+// @match        https://www.wzyp.cn/merchant/*
 // @match        https://www.ldxp.cn/merchant/*
 // @grant        none
 // @run-at       document-idle
@@ -129,13 +133,21 @@
   }
 
   function safeUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw || raw === "#") return "";
     try {
-      const url = new URL(String(value || ""), location.origin);
-      if (url.protocol !== "https:" && url.protocol !== "http:") return "#";
+      const url = new URL(raw, location.origin);
+      if (url.protocol !== "https:" && url.protocol !== "http:") return "";
+      if (url.origin === location.origin && url.pathname === "/" && !url.search && !url.hash) return "";
       return url.href;
     } catch (_) {
-      return "#";
+      return "";
     }
+  }
+
+  // 部分货源不开放商品详情页，空链接必须显示为纯文本，不能回退到站点首页。
+  function sourceItemUrl(item) {
+    return safeUrl(item?.link) || safeUrl(item?.child?.link);
   }
 
   function notify(message, type = "info") {
@@ -367,9 +379,11 @@
             const stock = getSourceStock(item);
             const connected = Boolean(item.child);
             const listed = listedLabel(item);
+            const link = sourceItemUrl(item);
+            const name = escapeHtml(item.name || "-");
             return `<tr>
               <td><input type="checkbox" data-source-id="${escapeHtml(item.id)}" ${sourceState.selected.has(String(item.id)) ? "checked" : ""}></td>
-              <td class="name"><a href="${escapeHtml(safeUrl(item.link))}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.name || "-")}</a></td>
+              <td class="name">${link ? `<a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</td>
               <td>${escapeHtml(GOODS_TYPES[item.goods_type] || item.goods_type || "-")}</td>
               <td>${escapeHtml(money(getSourceCost(item)))}</td>
               <td><span class="ldxp-toolkit-badge ${listed.className}">${listed.text}</span></td>
@@ -887,8 +901,8 @@
       for (let index = 0; index < items.length; index += 1) {
         const item = items[index];
         setPanelStatus(panel, `正在获取链接 ${index + 1}/${items.length}...`);
-        let link = safeUrl(item.link);
-        if (link === "#") {
+        let link = sourceItemUrl(item);
+        if (!link) {
           try {
             const data = await postJson(API.goodsLink, { id: item.id });
             link = safeUrl(data?.link || data?.short_link);

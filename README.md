@@ -16,24 +16,25 @@ QQ 交流群：`1076144676`
 ## 安装
 
 1. 安装 Tampermonkey 或 Violentmonkey。
-2. 从 [Greasy Fork 安装](https://greasyfork.org/zh-CN/scripts/587565-%E9%93%BE%E5%8A%A8%E5%B0%8F%E9%93%BA%E5%95%86%E5%AE%B6%E5%A2%9E%E5%BC%BA%E5%B7%A5%E5%85%B7)，或打开 [`ldxp-merchant-toolkit.user.js`](./ldxp-merchant-toolkit.user.js) 后点击 Raw 安装。
+2. 从 [GitHub 最新版安装](https://github.com/miku1130/ldxp-merchant-toolkit/releases/latest/download/ldxp-merchant-toolkit.user.js)，或从 [Greasy Fork 安装](https://greasyfork.org/zh-CN/scripts/587565-%E9%93%BE%E5%8A%A8%E5%B0%8F%E9%93%BA%E5%95%86%E5%AE%B6%E5%A2%9E%E5%BC%BA%E5%B7%A5%E5%85%B7)。
 3. 登录链动小铺商家后台并刷新页面。
 
 ## 发布地址
 
 - [GitHub](https://github.com/miku1130/ldxp-merchant-toolkit)
+- [GitHub 最新版](https://github.com/miku1130/ldxp-merchant-toolkit/releases/latest)
 - [Greasy Fork](https://greasyfork.org/zh-CN/scripts/587565-%E9%93%BE%E5%8A%A8%E5%B0%8F%E9%93%BA%E5%95%86%E5%AE%B6%E5%A2%9E%E5%BC%BA%E5%B7%A5%E5%85%B7)
 
 ## 使用页面
 
-- 货源广场：`https://www.ldxp.cn/merchant/my_parent/source_square`
-- 商品管理：`https://www.ldxp.cn/merchant/goods/list?is_proxy=1`
+- 货源广场：`https://wzyp.cn/merchant/my_parent/source_square`
+- 商品管理：`https://wzyp.cn/merchant/goods/list?is_proxy=1`
 
 批量修改会直接保存到店铺。首次使用建议只选择一个测试商品。
 
 ## 隐私与安全
 
-脚本仅请求 `www.ldxp.cn` 的站内 `/merchantApi/` 接口，不会向第三方发送登录令牌或商品数据。
+脚本仅请求 `wzyp.cn` 的站内 `/merchantApi/` 接口，不会向第三方发送登录令牌或商品数据。
 
 ## 许可证
 
